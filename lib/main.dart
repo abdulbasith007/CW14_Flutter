@@ -3,81 +3,84 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 
-Future<void> _messageHandler(RemoteMessage message) async {
-  print('background message ${message.notification!.body}');
+Future<void> handleBackgroundMessage(RemoteMessage message) async {
+  print('Received background message: ${message.notification?.body}');
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-    name: 'hiFriends',
+    name: 'MyAppInstance',
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  FirebaseMessaging.onBackgroundMessage(_messageHandler);
-  runApp(MessagingTutorial());
+  FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
+  runApp(FirebaseMessagingApp());
 }
 
-class MessagingTutorial extends StatelessWidget {
+class FirebaseMessagingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Firebase Messaging',
+      title: 'Push Notifications Demo',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.green,
       ),
-      home: MyHomePage(title: 'Firebase Messaging'),
+      home: NotificationHomePage(title: 'Push Notifications'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, this.title}) : super(key: key);
-  final String? title;
+class NotificationHomePage extends StatefulWidget {
+  final String title;
+  const NotificationHomePage({Key? key, required this.title}) : super(key: key);
+
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _NotificationHomePageState createState() => _NotificationHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  late FirebaseMessaging messaging;
-  String? notificationText;
+class _NotificationHomePageState extends State<NotificationHomePage> {
+  late FirebaseMessaging firebaseMessaging;
+  String? notificationContent;
+
   @override
   void initState() {
     super.initState();
-    messaging = FirebaseMessaging.instance;
-    messaging.subscribeToTopic("messaging");
-    messaging.getToken().then((value) {
-      print(value);
+    firebaseMessaging = FirebaseMessaging.instance;
+    firebaseMessaging.subscribeToTopic("notifications");
+    
+    firebaseMessaging.getToken().then((token) {
+      print("FCM Token: $token");
     });
-    FirebaseMessaging.onMessage.listen((RemoteMessage event) {
-      print("message recieved");
-      print(event.notification!.body);
-      print(event.data.values);
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("New message received");
+      print("Notification content: ${message.notification?.body}");
+      print("Data payload: ${message.data.values}");
+
       showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text("Notification"),
-              content: Text(event.notification!.body!),
-              actions: [
-                TextButton(
-                  child: Text(
-                    "Ok",
-                    style: TextStyle(
-                        color: event.data.values.isEmpty
-                            ? Colors.blue
-                            : Colors.red),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                )
-              ],
-            );
-          });
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("New Notification"),
+            content: Text(message.notification?.body ?? "No content"),
+            actions: [
+              TextButton(
+                child: Text(
+                  "Close",
+                  style: TextStyle(
+                      color: message.data.isEmpty ? Colors.green : Colors.red),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          );
+        },
+      );
     });
+
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      print('Message clicked!');
+      print('Notification clicked by user.');
     });
   }
 
@@ -85,9 +88,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title!),
+        title: Text(widget.title),
       ),
-      body: Center(child: Text("Messaging Tutorial")),
+      body: Center(child: Text("Welcome to the Firebase Messaging Demo")),
     );
   }
 }
